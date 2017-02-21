@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.text.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.*?>
+
+
+<?import javafx.scene.shape.Circle?>
+<VBox prefHeight="450" prefWidth="350" alignment="TOP_CENTER" fx:controller="no.fredrfli.boiler.BoilerController"
+      stylesheets="styles.css"
+      xmlns:fx="http://javafx.com/fxml">
+
+    <Label text="Hello World" style="-fx-padding: 20px 0px 20px 0px; -fx-text-alignment: center; -fx-font-size: 24px;"/>
+
+    <HBox>
+        <Circle fx:id="crclReady" radius="5" style="-fx-fill: #DDD; -fx-stroke: #333 2px;"/>
+        <Label text="Ready to boil" style="-fx-padding: 0 0 0 10px;"/>
+    </HBox>
+
+    <HBox>
+        <Circle fx:id="crclBoil" radius="5" style="-fx-fill: #DDD; -fx-stroke: #333 2px;"/>
+        <Label text="Boiling" style="-fx-padding: 0 0 0 10px;"/>
+    </HBox>
+
+    <HBox>
+        <Circle fx:id="crclProblem" radius="5" style="-fx-fill: #DDD; -fx-stroke: #333 2px;"/>
+        <Label text="Problem with boiling" style="-fx-padding: 0 0 0 10px;"/>
+    </HBox>
+
+    <HBox style="-fx-padding: 5px 0 10px 20px">
+        <Label text="Last Boil: " style="-fx-padding: 0px 10px 0px 0px;"/>
+        <TextField  fx:id="lastBoil" text="2017-02-25"/>
+    </HBox>
+
+    <Button text="Boil" onAction="#boilHandler" style="-fx-padding: 5px 145px 5px 145px;"/>
+
+</VBox>
