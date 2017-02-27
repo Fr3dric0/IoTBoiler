@@ -25,6 +25,11 @@
     </HBox>
 
     <HBox>
+        <Label text="Started" style="-fx-padding: 0 0 0 10px;"/>
+        <TextField fx:id="txtStarted"/>
+    </HBox>
+
+    <HBox>
         <Circle fx:id="crclProblem" radius="5" style="-fx-fill: #DDD; -fx-stroke: #333 2px;"/>
         <Label text="Problem with boiling" style="-fx-padding: 0 0 0 10px;"/>
     </HBox>
@@ -36,4 +41,7 @@
 
     <Button text="Boil" onAction="#boilHandler" style="-fx-padding: 5px 145px 5px 145px;"/>
 
+    <HBox>
+        <TextField fx:id="txtError"/>
+    </HBox>
 </VBox>

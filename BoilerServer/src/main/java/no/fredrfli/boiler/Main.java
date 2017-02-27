@@ -2,7 +2,6 @@ package no.fredrfli.boiler;
 
 import static spark.Spark.*;
 import com.fazecast.jSerialComm.*;
-import javafx.collections.ObservableList;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -15,7 +14,7 @@ import java.util.Date;
 
 public class Main {
     private static SerialPort btPort;
-
+    private static String btName = "PLab_fredrfli-DevB";
     private static boolean connected = false;
 
     private static boolean boiling = false;
@@ -24,11 +23,15 @@ public class Main {
 
     private static Date boilStart;
     private static Date boilEnd;
+    private static double liter;
 
+
+
+    //private static DataListener onBoil = new DataListener();
 
     public static void main(String[] args) {
         try {
-            init("PLab_fredrfli-DevB");
+            init(btName);
         } catch (IOException ioe) {
             ioe.printStackTrace();
             System.exit(1);
@@ -37,16 +40,23 @@ public class Main {
         before((req, res) -> {
             // Blocks all connection, if bluetooth connection is broken.
             if (!connected) {
-                halt(500, "Server connection problem with arduino. Please check");
-                init("PLab_fredrfli-DevB"); // Try to initialize again
+                halt(500, "{\"error\": \"Server connection problem with arduino. Please check bluetooth chip\"}");
+                init(btName); // Try to initialize again
             }
         });
 
         get("/boil", (req, res) -> {
-            // If Service is already boiling, send NOT OK.
+/*
+            if (boiling && boilStart == null) {
+                boiling = false;
+                sendText("B"); // Update boiling
+                return "{\"boiling\": false}";
+            }*/
+
+            // If Service is already boiling, send stats
             if (boiling || startboil) {
                 res.status(400);
-                return "NOT OK";
+                return String.format("{\"boiling\": true, \"started\": \"%s\"}", boilStart);
             }
 
             // Reset dates
@@ -56,7 +66,7 @@ public class Main {
             try {
                 sendText("R"); // Send the boil command
             } catch (IOException ioe) {
-                halt(500, "NOT OK");
+                halt(500, String.format("{\"error\": \"%s\"}", ioe.getMessage()));
                 return null;
             }
 
@@ -66,26 +76,36 @@ public class Main {
             try {
                 sendText("B"); // Check if boiling
             } catch (IOException ioe) {
-                halt(500, "NOT OK");
+                halt(500, "{\"boiling\": false, \"error\": \"" + ioe.getMessage() + "\"}");
                 return null;
             }
-            return "OK";
+
+            if (boiling) {
+                return boilStart != null ?
+                        "{\"boiling\": true}" :
+                        String.format("{\"boiling\": true, \"started\": \"%s\"}", boilStart);
+            } else {
+                return "{\"boiling\": false}";
+            }
         });
 
         get("/isboiling", (req, res) -> {
             try {
                 sendText("B");
             } catch (IOException ioe) {
-                halt(500, "arduino connection problem");
+                halt(500, "{\"error\": \""+ioe.getMessage()+"\"}");
                 return null;
             }
 
             Thread.sleep(500); // Wait 500ms.
-            res.type("application/json");
 
             if (boiling) {
-                return String.format("{\"boiling\": true, \"started\": \"%s\", \"ended\": \"%s\"}", boilStart, boilEnd);
+                return String.format("{\"boiling\": true, \"started\": \"%s\", \"ended\": \"%s\", \"liter\": %s}", boilStart, boilEnd, liter);
             } else {
+                if (lastBoil != null) {
+                    return "{\"boiling\": false, \"lastBoil\": \""+lastBoil+"\", \"liter\": "+liter+"}";
+                }
+
                 return "{\"boiling\": false}";
             }
         });
@@ -93,15 +113,17 @@ public class Main {
         get("/stats", (req, res) -> {
             res.type("application/json");
             return String.format(
-                    "{\"boiling\":%s, \"boilStart\": \"%s\", \"boilEnd\": \"%s\", \"lastBoil\": \"%s\"}",
+                    "{\"boiling\":%s, \"started\": \"%s\", \"ended\": \"%s\", \"lastBoil\": \"%s\", \"liter\": %s}",
                     boiling,
                     boilStart,
                     boilEnd,
-                    lastBoil);
+                    lastBoil,
+                    liter
+            );
         });
 
         after((req, res) -> {
-            //res.type("text/plain");
+            res.type("application/json");
         });
     }
 
@@ -148,8 +170,7 @@ public class Main {
             return false;
         }
 
-        System.out.println("BLUETOOTH PORT CONNECTED");
-        System.out.println(btPort.getDescriptivePortName());
+        System.out.println("Bluetooth connection successful (" + btPort.getDescriptivePortName() + ")");
 
         btPort.addDataListener(new SerialPortDataListener() {
             @Override
@@ -166,7 +187,6 @@ public class Main {
                 for (int i = 0; i < numRead; i++) {
                     s += (char) newData[i];
                 }
-                System.out.println("Revieced data from Arduino: " + s);
                 btResponseHandler(s);
             }
         });
@@ -185,11 +205,11 @@ public class Main {
                 boiling = true;
                 startboil = false; // Boiling has been confirmed by Arduino
                 boilStart = new Date();
+                System.out.println("Boil started " + boilStart);
                 break;
             // Is boiling, or could not start
             case "1":
-                boiling = false;
-                startboil = false;
+                System.out.println("Still boiling");
                 break;
 
             // Is boiling
@@ -199,11 +219,13 @@ public class Main {
                 break;
             // Is not boiling
             case "3":
-                if (boiling) {
+                if (boiling) { // Save state and date
                     boilEnd = new Date();
                     lastBoil = boilEnd;
+                    liter = getLiter(boilStart, boilEnd);
+                    boilStart = null;
+                    System.out.println("Boil ended " + boilEnd);
                 }
-
                 boiling = false;
                 break;
             // PING for ensuring connection with Arduino
@@ -213,9 +235,19 @@ public class Main {
             case "5":
                 connected = false;
                 break;
+
         }
     }
 
+    private static double getLiter(Date start, Date end) {
+        // f(x:duration) = -2.48 + 0.7 ln(x)
+        double b = -2.48;
+        double a = 0.7;
+        int duration = (int) (end.getTime() - start.getTime());
+
+        double liter = b + a * Math.log(duration/1000);
+        return liter > 0 ? liter : 0;
+    }
 
     private static void sendText(String txt) throws IOException {
         if (!btPort.isOpen()) {
