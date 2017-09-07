@@ -1,7 +1,13 @@
 IoT Water Boiler
 ================
 
-Project to modify our water boiler to become an IoT water boiler, with the help of Arduino and Java.
+Project to modify a water boiler to become an Internet of Things Water Boiler, using Arduino and Java Spark.
+
+### Features
+
+1. Initiate boiling through HTTP calls
+2. Notification and statistics of when the boiling started and ended
+3. Automatically calculates the amount of water boiled
 
 ## Arduino
 The arduino part is built up of an Arduino Uno, breadboard, Bluetooth sensor, servo, and humidity sensor.
@@ -14,10 +20,10 @@ We will then use the humidity sensor to detect when the boiler is finished (_whe
 > Plan ahead. Use the boiling time to calculate the amount of water boiled
 
 ### Limitations
-Because of the limited reliability of the bluetooth chip, we should limit us to only send and recieve single characters
+Because of the limited reliability of the bluetooth chip, the communication between Arduino and Java Spark is restricted to one character to and from. Therefore, Java Spark is responsible for building most of the logic and statistics.
 
 ## Java Server
-The coordination central is the Java Spark-server, which communicates with the clients (_HTTP request_) and arduino (_Bluetooth signals_). 
+The coordination central is the Java Spark-server, which communicates with the clients (_HTTP_) and Arduino (_Bluetooth_). 
 
 ### Available Requests
 
@@ -29,5 +35,4 @@ The coordination central is the Java Spark-server, which communicates with the c
 ## JavaFX client
 The clientside part of the project is a JavaFX program, which has the ability to initiate boiling, present statistics etc.
 
-## Summed up
-If all components communicate corretly, we should be left with a fully operational **IoT Water Boiler**.
+> It is much better to implement your own client for initiating and recieving signals.
